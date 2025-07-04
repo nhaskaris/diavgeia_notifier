@@ -110,16 +110,20 @@ export default class Manager {
     }
 
     private async runHttpsRequest(url: string): Promise<number> {
-        const response = await axios.get(url);
+        try {
+            const response = await axios.get(url);
 
-        if (response.status !== 200) {
-            logger.error(`Manager failed to run HTTPS request to ${url} with status code ${response.status}`);
+            if (response.status !== 200) {
+                logger.error(`Manager failed to run HTTPS request to ${url} with status code ${response.status}`);
+                return -1;
+            }
 
+            const results: AdvancedSearchResults = response.data;
+
+            return results.info.total;
+        } catch (error) {
+            logger.error(`Manager failed to run HTTPS request to ${url}: ${error}`);
             return -1;
         }
-
-        const results: AdvancedSearchResults = response.data;
-
-        return results.info.total;
     }
 }
