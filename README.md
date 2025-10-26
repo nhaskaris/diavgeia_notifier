@@ -19,7 +19,7 @@ Diavgeia_Notifier is a Node.js application that will notify you when a new decis
 ```
 
 ## Usage
-By default the schema will look like this. You should change the values to your liking and rename the file from `options.json.template` to `options.json`(Keep in mind that you will need to edit it to get it started).
+By default the schema will look like this. You should change the values to your liking and rename the file from `options.json.template` to `options.json`(Keep in mind that you will need to edit it to get it started). Docker usage by default mounts an options.json file to the directory. If you dont edit the file and rename it one will be created for you.
 
 ```
 {
@@ -36,7 +36,7 @@ By default the schema will look like this. You should change the values to your 
 
 ## Installation
 
-1. Clone the repository.~
+1. Clone the repository.
 
 ## Execution
 
@@ -48,7 +48,6 @@ By default the schema will look like this. You should change the values to your 
 5. If you want to stop the application run the following command: `pm2 kill`
 
 ### Docker 
-1. Run the follow command: `docker build -t diavgeia_notifier . && docker run -d diavgeia_notifier`
-2. To get the container's id or name run: `docker ps`
-3. Live logs can be seen with the following command using the container's id or name: `docker logs -f id/name`
-4. If you want to stop the container run the following command using the container's id or name: `docker stop id/name`
+1. Run the follow command: `docker compose up -d --build`
+2. Live logs can be seen with the following command using the container's id or name: `docker logs -f diavgeia_notifier`
+3. If you want to stop the container run the following command using the container's id or name: `docker stop diavgeia_notifier`
