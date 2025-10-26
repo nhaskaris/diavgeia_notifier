@@ -26,13 +26,14 @@ const consoleFormat = winston.format.combine(
     winston.format.printf(info => {
         let msg = `${info.timestamp} ${info.level}: ${info.message}`;
 
-        const splat = info[Symbol.for('splat') as unknown as string];
+        // Type splat as any[] safely
+        const splat = info[Symbol.for('splat')] as any[] | undefined;
 
-        if (splat) {
+        if (splat && Array.isArray(splat)) {
             if (splat.length === 1) {
                 msg += ` ${JSON.stringify(splat[0])}`;
             } else if (splat.length > 1) {
-                msg += ` ${JSON.stringify(info[Symbol.for('splat') as unknown as string])}`;
+                msg += ` ${JSON.stringify(splat)}`;
             }
         }
 
