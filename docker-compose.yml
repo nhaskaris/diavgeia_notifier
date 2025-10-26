@@ -6,4 +6,5 @@ services:
     container_name: diavgeia_notifier
     restart: unless-stopped
     volumes:
-      - ./options.json:/app/options.json   # Mount user's config file
+      - ./options.json:/app/options.json
+      - ./output.json:/app/output.json
