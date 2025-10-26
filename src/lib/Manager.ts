@@ -37,77 +37,74 @@ export default class Manager {
     }
 
     private async startSearch(): Promise<void> {
-        logger.info('🔄 Manager started searching')
+        logger.info('🔄 Manager started searching');
 
-        const organizationLatinName = this.options.advancedSearch.organizationLatinName;
+        const { organizationLatinName, organizationId, query } = this.options.advancedSearch;
 
-        const organizationId = this.options.advancedSearch.organizationId;
+        let params: string[] = [];
 
-        const query = this.options.advancedSearch.query;
+        if (organizationLatinName) params.push(`organizationLatinName:"${organizationLatinName}"`);
+        if (organizationId && !isNaN(parseInt(organizationId))) params.push(`organizationId:${organizationId}`);
+        if (query) params.push(`q:["${query}"]`);
 
-        let params = []
-
-        if (organizationLatinName) {
-            params.push(`organizationLatinName:"${organizationLatinName}"`);
-        }
-
-        if (organizationId) {
-            //check if the organizationId is a number
-            if (!isNaN(parseInt(organizationId))) {
-                params.push(`organizationId:${organizationId}`);
-            }
-        }
-
-        if (query) {
-            params.push(`q:["${query}"]`);
-        }
-
-        params = params.map(param => `${param}`);
-
-        let string = params.join(' AND ');
-
-        string = `q=(${string})`;
-
-        //if all the params are empty then return
         if (!params.length) {
             logger.info('❌ Manager failed to start searching because all the params are empty');
-
             return;
         }
 
-        let url = this.config.getApiUrlWithParams('search/advanced', string);
+        const baseQuery = params.join(' AND ');
+        const now = new Date();
+        const threeYearsAgo = new Date();
+        threeYearsAgo.setFullYear(now.getFullYear() - 3);
 
-        url = encodeURI(url);
+        const dayChunks = this.createDateChunks(threeYearsAgo, now, 180); // 180-day chunks
+        let totalResults = 0;
 
-        const totalResults = await this.runHttpsRequest(url);
+        for (const chunk of dayChunks) {
+            const startStr = `DT(${chunk.start.toISOString().split('.')[0]})`;
+            const endStr = `DT(${chunk.end.toISOString().split('.')[0]})`;
 
-        if (totalResults < 0) {
-            logger.error('Manager failed to run HTTPS request');
+            const urlParams = `${baseQuery} AND issueDate:[${startStr} TO ${endStr}]`;
+            const encodedParams = encodeURI(`q=(${urlParams})`);
 
-            return;
+            const url = this.config.getApiUrlWithParams('search/advanced', encodedParams);
+            const chunkResults = await this.runHttpsRequest(url);
+
+            if (chunkResults > 0) totalResults += chunkResults;
         }
 
-        logger.info(`✅ Manager finished searching with ${totalResults} results`);
+        logger.info(`✅ Total results across 3 years: ${totalResults}`);
 
         if (this.totalResults < totalResults) {
-            let message = `Found ${totalResults - this.totalResults} new results with the keyword ${this.options.advancedSearch.query}`;
+            let message = `Found ${totalResults - this.totalResults} new results for "${query}"`;
+            if (organizationLatinName) message += ` in ${organizationLatinName}`;
 
-            if (this.options.advancedSearch.organizationLatinName) {
-                message += ` at the organization ${this.options.advancedSearch.organizationLatinName}`;
-            }
+            logger.info('📩 ' + message);
 
-            logger.info('📩 ' + message)
-
-            if (this.notifications) {
-                this.notifications.sendDiscord(message);
-            }
+            if (this.notifications) this.notifications.sendDiscord(message);
 
             this.totalResults = totalResults;
-
-            //save the total results to the file output.json
             saveOutput({ totalResults: this.totalResults });
         }
     }
+
+    private createDateChunks(start: Date, end: Date, daysPerChunk: number): { start: Date; end: Date }[] {
+        const chunks: { start: Date; end: Date }[] = [];
+        let currentStart = new Date(start);
+
+        while (currentStart < end) {
+            const currentEnd = new Date(currentStart);
+            currentEnd.setDate(currentEnd.getDate() + daysPerChunk - 1); // exactly 180 days max
+            if (currentEnd > end) currentEnd.setTime(end.getTime());
+            chunks.push({ start: new Date(currentStart), end: currentEnd });
+            currentStart = new Date(currentEnd);
+            currentStart.setDate(currentStart.getDate() + 1); // start next chunk
+        }
+
+        return chunks;
+    }
+
+
 
     private async runHttpsRequest(url: string): Promise<number> {
         try {
